@@ -1,13 +1,34 @@
 from src import config as cf
 from src import preprocess as pre
+from src import utils as ut
 
 def main():
+    eval = cf.EVAL
+
     for path in cf.DATA_PATHS:
-        raw, nat_count, duplicate_count = pre.load_sensor_data(path)
-        print(f"Loaded {path}: {raw.shape[0]} rows, {nat_count} NaT in datetime, {duplicate_count} duplicate timestamps")
 
+        #Load Data Sets
+        raw, sensor, df = pre.load_sensor_data(path)
+        if eval == True:
+            ut.count_issues(df)
 
+        #Frequency Reindexing
+        rd = pre.reindex(raw)
+        if eval == True:
+            ut.reindex_report(rd, raw)
+  
+        # Hampel Filter
+        hampel_df = pre.hampel_filter(rd)
+        if eval == True:
+            ut.filter_report(rd, hampel_df) 
+        
+        # Interpolation of Segments
+        fill_seg = pre.interpolate(hampel_df)
+        if eval == True:
+            ut.interpolate_report(rd, fill_seg)
 
+        gaps = pre.segment_gaps(fill_seg)
+        print(gaps)
 
 if __name__ == "__main__":
     main()
