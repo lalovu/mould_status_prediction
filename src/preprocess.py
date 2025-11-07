@@ -1,7 +1,6 @@
 import pandas as pd
 from . import config as cf
 import numpy as np
-from . import utils as ut
 from hampel import hampel
 
 
@@ -48,18 +47,17 @@ def hampel_filter(df):
             window_size=cf.HAMPEL_WINDOW, 
             n_sigma=float(cf.HAMPEL_N_SIGMAS)
         )
-        df_copy[col] = res.filtered_data
-
+        
         flag_col = col + "_is_outlier"
         df_copy[flag_col] = 0
         df_copy.loc[res.outlier_indices, flag_col] = 1
 
-    return df_copy
+    return df_copy   
 
 
 def interpolate(df):
     df_interp = df.copy()
-    df_interp[cf.DATETIME_COL] = pd.to_datetime(df_interp[cf.DATETIME_COL])
+    df_interp[cf.DATETIME_COL] = pd.to_datetime(df_interp[cf.DATETIME_COL], errors='coerce')
     df_interp = df_interp.set_index(cf.DATETIME_COL)
     
     for col in cf.SENSOR_COLUMNS:
@@ -78,18 +76,37 @@ def interpolate(df):
 
 def segment_gaps(df):
     df_copy = df.copy()
-    df_copy[cf.DATETIME_COL] = pd.to_datetime(df_copy[cf.DATETIME_COL])
+    df_copy[cf.DATETIME_COL] = pd.to_datetime(df_copy[cf.DATETIME_COL], errors='coerce')
     df_copy = df_copy.set_index(cf.DATETIME_COL)
+    
+    ok = df_copy[cf.SENSOR_COLUMNS].notna().all(axis=1)
 
-    gap_starts = df_copy.index[df_copy[cf.SENSOR_COLUMNS].isna().all(axis=1) & 
-                               ~df_copy[cf.SENSOR_COLUMNS].shift(1).isna().all(axis=1)]
-    gap_ends = df_copy.index[df_copy[cf.SENSOR_COLUMNS].isna().all(axis=1) & 
-                             ~df_copy[cf.SENSOR_COLUMNS].shift(-1).isna().all(axis=1)]
+    start = df_copy.index[ok & ~ok.shift(1, fill_value=False)]
+    end = df_copy.index[ok & ~ok.shift(-1, fill_value=False)]
 
-    gaps = pd.DataFrame({'start': gap_starts, 'end': gap_ends})
-    gaps['duration'] = gaps['end'] - gaps['start']
+    seg = pd.DataFrame({"start": start, "end": end})
+    seg["duration"] = seg["end"] - seg["start"]
+    segments = [df_copy.loc[s:e].reset_index() for s, e in zip(start, end)]
 
-    return gaps
+    df_copy = df_copy.reset_index()
+
+    return segments, seg
+
+def rolling(df):
+    df = df.copy()
+    df[cf.DATETIME_COL] = pd.to_datetime(df[cf.DATETIME_COL], errors='coerce')
+    df = df.set_index(cf.DATETIME_COL)
+
+    for col in cf.SENSOR_COLUMNS:
+        series = df[col]
+        df[col] = series.rolling(window=30, center=True, min_periods=1).median()
+    
+    df = df.reset_index()
+    return df
+
+
+
+
 
 
 

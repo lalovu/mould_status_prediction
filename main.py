@@ -27,8 +27,21 @@ def main():
         if eval == True:
             ut.interpolate_report(rd, fill_seg)
 
-        gaps = pre.segment_gaps(fill_seg)
-        print(gaps)
+        # Segments valid timeseries
+        segments, report = pre.segment_gaps(fill_seg)
+        processed_segments = [pre.rolling(seg) for seg in segments]
+        if eval:
+            ut.seg_to_csv(processed_segments)
 
+        #Thresholding 
+        
+        
+        # Interactive Plotting
+        states = {
+            "raw": raw,
+            "hampel": hampel_df
+        }
+        ut.interactive_plots(states, sensor_cols=cf.SENSOR_COLUMNS, datetime_col=cf.DATETIME_COL)
+        
 if __name__ == "__main__":
     main()
