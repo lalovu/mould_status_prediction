@@ -1,5 +1,10 @@
 import pandas as pd
+import numpy as np
 from . import config as cf
+import matplotlib.pyplot as plt
+from . import preprocess as pre
+import glob, os
+
 
 def count_issues(df):
     # Count
@@ -36,7 +41,7 @@ def interpolate_report(original_df, filled_df):
 
     filled_df.to_csv('csv_checklist/filled_df.csv', index=False)
 
-    print(filled_df.head(20).to_string(index=False))
+    print(filled_df.head(20))
     print(f"Total data points: {total_points * len(cf.SENSOR_COLUMNS)}")
     print(f"Total missing data points before interpolation: {total_missing}")
     print(f"Total data points filled by interpolation: {total_interpolated}")
@@ -44,6 +49,7 @@ def interpolate_report(original_df, filled_df):
 
 def filter_report(original_df, filtered_df):
     filtered_df.to_csv('csv_checklist/filtered_output.csv', index=False)
+    original_df.to_csv('csv_checklist/original_output.csv', index=False)
 
     # Report
     print(f"Total records after filtering: {len(filtered_df)}")
@@ -51,17 +57,70 @@ def filter_report(original_df, filtered_df):
     print(filtered_df.head(20).to_string(index=False))
     print("-" * 40)
 
-'''
-def plot_data(original_df, filtered_df, interpolated_df, sensor_col):
-    plt.figure(figsize=(15, 6))
-    plt.plot(original_df[cf.DATETIME_COL], original_df[sensor_col], label='Original Data', color='blue', alpha=0.5)
-    plt.plot(filtered_df[cf.DATETIME_COL], filtered_df[sensor_col], label='After Hampel Filter', color='orange', alpha=0.7)
-    plt.plot(interpolated_df[cf.DATETIME_COL], interpolated_df[sensor_col], label='After Interpolation', color='green', alpha=0.9)
-    
-    plt.xlabel('Timestamp')
-    plt.ylabel(sensor_col)
-    plt.title(f'{sensor_col} Data Processing Steps')
-    plt.legend()
-    plt.grid(True)
+def seg_to_csv(segment):
+    for i, seg in enumerate(segment):
+            filename = f"csv_checklist/segment_{i}.csv"
+            seg.to_csv(filename, index=False)
+            print(f"Saved {filename}")
+
+
+def interactive_plots(states, sensor_cols, datetime_col):
+
+    fig, ax = plt.subplots(figsize=(15, 6))
+    state = {"i": 0}  # index of current sensor
+    colors = ["blue", "orange", "green", "red", "purple", "cyan"]
+
+    def draw():
+        ax.clear()
+        sensor = sensor_cols[state["i"]]
+        for j, (name, df) in enumerate(states.items()):
+            if sensor not in df.columns: 
+                continue
+            ax.plot(df[datetime_col], df[sensor],
+                    label=name, color=colors[j % len(colors)], alpha=0.7)
+
+        ax.set_title(f"{sensor} Data Processing Steps")
+        ax.set_xlabel("Timestamp"); ax.set_ylabel(sensor)
+        ax.legend(); ax.grid(True, alpha=0.4)
+        fig.canvas.draw_idle()
+
+    def on_key(e):
+        if e.key == "right":
+            state["i"] = (state["i"] + 1) % len(sensor_cols)
+            draw()
+        elif e.key == "left":
+            state["i"] = (state["i"] - 1) % len(sensor_cols)
+            draw()
+
+    fig.canvas.mpl_connect("key_release_event", on_key)
+    draw()
     plt.show()
-'''
+
+
+def load_segments(path="csv_checklist/segment_*.csv"):
+    files = sorted(glob.glob(path))
+    if not files:
+        raise FileNotFoundError("No CSV files found under csv_checklist/")
+    return [pd.read_csv(f) for f in files]
+
+
+def cop_plot(y, cps):
+    plt.figure(figsize=(15, 5))
+    plt.plot(y, alpha=0.7)  
+    for cp in cps[:-1]:  # skip last one (end of series)
+        plt.axvline(cp, color="orange", lw=1, alpha=0.5)
+    plt.title(f"{cf.SENSOR}: Change points")
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
