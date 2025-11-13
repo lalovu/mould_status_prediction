@@ -2,6 +2,7 @@ import pandas as pd
 from . import config as cf
 import matplotlib.pyplot as plt
 import glob
+import os
 
 
 def count_issues(df):
@@ -56,8 +57,11 @@ def filter_report(original_df, filtered_df):
     print("-" * 40)
 
 def seg_to_csv(segment):
+
+    os.makedirs("segments", exist_ok=True)
+
     for i, seg in enumerate(segment):
-            filename = f"csv_checklist/segment_{i}.csv"
+            filename = f"segments/segment_{i}.csv"
             seg.to_csv(filename, index=False)
             print(f"Saved {filename}")
 

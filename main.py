@@ -7,12 +7,12 @@ def main():
 
     for path in cf.DATA_PATHS:
 
-        #Load Data Sets
+        # Load Data Sets
         raw, sensor, df = pre.load_sensor_data(path)
         if eval == True:
             ut.count_issues(df)
 
-        #Frequency Reindexing
+        # Frequency Reindexing
         rd = pre.reindex(raw)
         if eval == True:
             ut.reindex_report(rd, raw)
@@ -32,14 +32,12 @@ def main():
         processed_segments = [pre.rolling(seg) for seg in segments]
         if eval:
             ut.seg_to_csv(processed_segments)
-
-        #Thresholding 
-        
+    
         
         # Interactive Plotting
         states = {
             "raw": raw,
-            "hampel": hampel_df
+            "Median": processed_segments
         }
         ut.interactive_plots(states, sensor_cols=cf.SENSOR_COLUMNS, datetime_col=cf.DATETIME_COL)
         
