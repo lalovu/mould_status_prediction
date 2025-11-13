@@ -1,9 +1,8 @@
 import pandas as pd
-import numpy as np
 from . import config as cf
 import matplotlib.pyplot as plt
-from . import preprocess as pre
-import glob, os
+import glob
+import os
 
 
 def count_issues(df):
@@ -58,8 +57,11 @@ def filter_report(original_df, filtered_df):
     print("-" * 40)
 
 def seg_to_csv(segment):
+
+    os.makedirs("segments", exist_ok=True)
+
     for i, seg in enumerate(segment):
-            filename = f"csv_checklist/segment_{i}.csv"
+            filename = f"segments/segment_{i}.csv"
             seg.to_csv(filename, index=False)
             print(f"Saved {filename}")
 
@@ -104,12 +106,20 @@ def load_segments(path="csv_checklist/segment_*.csv"):
     return [pd.read_csv(f) for f in files]
 
 
-def cop_plot(y, cps):
+def cop_plot(y, cps, s, false_alarm_indices=None):
     plt.figure(figsize=(15, 5))
-    plt.plot(y, alpha=0.7)  
+    plt.plot(y, alpha=0.7)
+    
+    # Shade false alarm regions
+    if false_alarm_indices:
+        for start, end in false_alarm_indices:
+            plt.axvspan(start, end, alpha=0.2, color="red")
+    
+    # Mark change points
     for cp in cps[:-1]:  # skip last one (end of series)
         plt.axvline(cp, color="orange", lw=1, alpha=0.5)
-    plt.title(f"{cf.SENSOR}: Change points")
+    
+    plt.title(f"{s}: Change points")
     plt.tight_layout()
     plt.show()
 

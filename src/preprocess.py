@@ -64,7 +64,7 @@ def interpolate(df):
         orig_nan_mask = df_interp[col].isna()
         df_interp[col] = df_interp[col].interpolate(
             method='linear',
-            limit=cf.GAP_THRESHOLD,  # max consecutive NaNs to fill
+            limit=cf.GAP_THRESHOLD,  
             limit_direction='both'
         )
         flag_col = col + "_is_interpolated"
