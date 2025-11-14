@@ -5,6 +5,7 @@ import glob
 import os
 
 
+
 def count_issues(df):
     # Count
     n_missing = df[cf.DATETIME_COL].isna().sum()
@@ -32,7 +33,7 @@ def reindex_report(df, raw_df):
     print("-" * 40)
 
 
-def interpolate_report(original_df, filled_df):
+def interpolate_report(original_df, filled_df, out_dir):
     total_points = len(original_df)
     total_missing = original_df[cf.SENSOR_COLUMNS].isna().sum().sum()
     total_filled = filled_df[cf.SENSOR_COLUMNS].isna().sum().sum()
@@ -46,7 +47,7 @@ def interpolate_report(original_df, filled_df):
     print(f"Total data points filled by interpolation: {total_interpolated}")
     print("-" * 40)
 
-def filter_report(original_df, filtered_df):
+def filter_report(original_df, filtered_df, out_dir):
     filtered_df.to_csv('csv_checklist/filtered_output.csv', index=False)
     original_df.to_csv('csv_checklist/original_output.csv', index=False)
 
@@ -56,7 +57,7 @@ def filter_report(original_df, filtered_df):
     print(filtered_df.head(20).to_string(index=False))
     print("-" * 40)
 
-def seg_to_csv(segment):
+def seg_to_csv(segment, out_dir):
 
     os.makedirs("segments", exist_ok=True)
 
@@ -122,6 +123,28 @@ def cop_plot(y, cps, s, false_alarm_indices=None):
     plt.title(f"{s}: Change points")
     plt.tight_layout()
     plt.show()
+
+
+
+
+def save_processed_segments(segment_paths, segments, sensor_cols):
+    """Save each processed segment under processed/<dataset>/<name>_processed.csv."""
+    for path, df in zip(segment_paths, segments):
+        filename = os.path.basename(path)
+        name, _ = os.path.splitext(filename)
+        dataset = name.split("_")[0] if "_" in name else "default"
+
+        out_dir = os.path.join("processed", dataset)
+        os.makedirs(out_dir, exist_ok=True)
+
+        fa_cols = [f"{s}_fa" for s in sensor_cols]
+        keep_cols = ["timestamp"] + list(sensor_cols) + fa_cols
+        df = df[keep_cols]
+
+        out_path = os.path.join(out_dir, f"{name}_processed.csv")
+        df.to_csv(out_path, index=False)
+
+        print(f"Saved {out_path}")
 
 
 
