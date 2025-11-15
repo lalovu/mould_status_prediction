@@ -2,8 +2,8 @@ import os
 import glob
 import numpy as np
 import ruptures as rpt
-from src import config as cf
-from src import utils as ut
+import config as cf
+import utils as ut
 
 eval = cf.EVAL
 

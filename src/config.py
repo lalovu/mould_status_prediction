@@ -1,18 +1,23 @@
-# Column DEFINITION
+
+
+#------------Utility------------------
+EVAL = True
+
+#------------Column Data------------------
 DATETIME_COL = 'timestamp'
 SENSOR_COLUMNS = ['temp', 'humidity', 'tvoc', 'eCO2', 'pm1', 'pm2.5', 'pm10']
 
-# DATASETS
+#------------Datasets------------------
 DATA_PATHS = [
     'dataset/tuba_combined_dataset.csv',
     'dataset/quarry_combined_dataset.csv'
 ]
 
-# Dataset Output Root
+#------------ROOT FOLDER FOR OUTPUTS AND INPUTS------------------
 OUTPUT_ROOT = 'csv_checklist'
 PROCESSED_ROOT = "processed"
 
-# Per-sensor false alarm thresholds 
+#------------Change of Point False Alarm Event Detection------------------
 FALSE_ALARM_THRESHOLDS = {
     'temp': 100,
     'humidity': 100,
@@ -23,34 +28,29 @@ FALSE_ALARM_THRESHOLDS = {
     'pm10': 80,
 }
 
-# Preprocessing 
-FORMAT = '%Y-%m-%d %H:%M:%S'
-FREQ = '10s'
-RESAMP = '5min'
-
-GAP_THRESHOLD = int('30')
-
-# Utility 
-EVAL = True
-
-# Filter 
-HAMPEL_WINDOW = 5
-HAMPEL_N_SIGMAS = 2
-
-# CoP DETECTION
-
+#------------Change of Point Parameters------------------
 MODEL = 'l2'
 PEN = 100
 MINL = 360
 JUMP = 540
 
-# 
+#------------FORMATS------------------
+FORMAT = '%Y-%m-%d %H:%M:%S'
+FREQ = '10s'
+RESAMP = '5min'
+GAP_THRESHOLD = int('30')
+
+#-----------FILTER------------------
+HAMPEL_WINDOW = 5
+HAMPEL_N_SIGMAS = 2
+ROLLING_WINDOW = 30
 
 '''
-
 MODEL = 'l2'
 PEN = 1000
 MINL = 360
 JUMP = 1200
 
 '''
+#------------Sequence Config------------------
+WINDOW = 360  
