@@ -1,80 +1,154 @@
-# cluster_sequences.py
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-SPLITS = "splits"     # directory with *_windows.npy and *_memberships.npy
-SPLIT  = "train"      # "train" | "val" | "test"
-CLUSTER_ID = 2       # which cluster to analyze
-SENSOR_IDX = 2        # <-- set to TVOC column index
-N_EXAMPLES = 12       # examples to show in small-multiples
-SAVE_FILES = True     # save idx/X to disk
-SAVE_FIGS  = False    # save figures
+SPLITS = Path("splits")
+SPLIT = "train"
+SENSOR_IDX = 2  # example: Sensor 2 (TVOC, etc.)
 
 def load_data(split):
-    X   = np.load(f"{SPLITS}/{split}_windows.npy")        # (N, T, F)
-    mem = np.load(f"{SPLITS}/{split}_memberships.npy")    # (N, C)
-    labels = mem.argmax(axis=1)                           # hard labels
-    return X, mem, labels
+    X = np.load(SPLITS / f"{split}_windows.npy")
+    mem = np.load(SPLITS / f"{split}_memberships.npy")
+    labels = mem.argmax(axis=1)
 
-def save_cluster_arrays(X, labels, k):
-    idx = np.where(labels == k)[0]
-    if SAVE_FILES:
-        out = Path(f"{SPLITS}/{SPLIT}_clusters"); out.mkdir(parents=True, exist_ok=True)
-        np.save(out / f"idx_cluster{k}.npy", idx)
-        np.save(out / f"X_cluster{k}.npy",   X[idx])
-    return idx
+    # load metadata
+    meta = pd.read_csv(SPLITS / f"{split}_metadata.csv")
 
-def plot_band(matrix, title):
-    # matrix: (n_seq, T)
-    p10  = np.percentile(matrix, 10, axis=0)
-    p90  = np.percentile(matrix, 90, axis=0)
-    mean = matrix.mean(axis=0)
-    T = np.arange(matrix.shape[1])
+    return X, labels, meta
 
-    plt.figure(figsize=(9, 4))
-    plt.fill_between(T, p10, p90, alpha=0.25, label="10-90% band")
-    plt.plot(T, mean, linewidth=2, label="Mean")
-    plt.xlabel("Time (minutes)")
-    plt.ylabel("Sensor value")
-    plt.title(title)
-    plt.grid(alpha=0.3); plt.legend(); plt.tight_layout()
 
-def plot_examples(matrix, n, title):
-    k = min(n, matrix.shape[0])
-    # pick top-membership indices inside this cluster for representativeness
-    rows = int(np.ceil(k / 4)); cols = min(4, k)
-    fig, axes = plt.subplots(rows, cols, figsize=(4*cols, 2.4*rows), squeeze=False)
-    T = np.arange(matrix.shape[1])
+def plot_cluster_sequences(X, labels, meta, sensor_idx, split):
+    clusters = np.unique(labels)
+    T = np.arange(X.shape[1])
 
-    for ax, i in zip(axes.flat, range(k)):
-        ax.plot(T, matrix[i], linewidth=1.5)
-        ax.set_title(f"seq {i}"); ax.grid(alpha=0.3)
-    for ax in axes.flat[k:]:
-        ax.axis("off")
+    fig, axes = plt.subplots(len(clusters), 1,
+                             figsize=(9, 3 * len(clusters)),
+                             sharex=True)
 
-    fig.suptitle(title); fig.tight_layout(rect=(0,0,1,0.96))
+    if len(clusters) == 1:
+        axes = [axes]
+
+    for ax, k in zip(axes, clusters):
+        idx = np.where(labels == k)[0]
+        mat = X[idx, :, sensor_idx]
+
+        if mat.size == 0:
+            ax.set_title(f"{split.upper()} - Cluster {k} (no data)")
+            ax.axis("off")
+            continue
+
+        p10 = np.percentile(mat, 10, axis=0)
+        p90 = np.percentile(mat, 90, axis=0)
+        mean = mat.mean(axis=0)
+
+        ax.fill_between(T, p10, p90, alpha=0.25, label="10–90% band")
+        ax.plot(T, mean, linewidth=2, label="Mean")
+        ax.set_ylabel("Value")
+        ax.set_title(f"{split.upper()} - Cluster {k}")
+        ax.grid(alpha=0.3)
+        ax.legend()
+
+    axes[-1].set_xlabel("Time (minutes)")
+    fig.suptitle(f"{split.upper()} - Sensor {sensor_idx} - All clusters")
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    plt.show()
+
+
+
+def interactive_viewer(X, labels, meta, memberships, sensor_idx, split):
+    """
+    Interactive viewer:
+      - arrow keys to navigate
+      - shows cluster, membership values, sequence_id, start_time, end_time
+    """
+
+    clusters = np.unique(labels)
+    T = np.arange(X.shape[1])
+
+    # map: cluster -> indices belonging to that cluster
+    cluster_idx = {k: np.where(labels == k)[0] for k in clusters}
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+    state = {"cpos": 0, "spos": 0}
+
+    def update_plot():
+        ax.clear()
+
+        k = clusters[state["cpos"]]
+        idxs = cluster_idx[k]
+
+        if len(idxs) == 0:
+            ax.set_title(f"{split.upper()} - Cluster {k} (empty)")
+            fig.canvas.draw_idle()
+            return
+
+        # clamp
+        state["spos"] = max(0, min(state["spos"], len(idxs) - 1))
+        seq_idx = idxs[state["spos"]]
+
+        # sequence data
+        y = X[seq_idx, :, sensor_idx]
+
+        # metadata
+        seq_id = meta.loc[seq_idx, "sequence_id"]
+        start_t = meta.loc[seq_idx, "start_time"]
+        end_t   = meta.loc[seq_idx, "end_time"]
+
+        # membership vector for this sequence
+        mu = memberships[seq_idx]              # shape (3,)
+        mu_str = np.array2string(mu, precision=3, separator=", ")
+
+        # plot
+        ax.plot(T, y, linewidth=1.5)
+        ax.grid(alpha=0.3)
+        ax.set_xlabel("Time (minutes)")
+        ax.set_ylabel("Value")
+
+        # updated title — membership instead of Seq x/y
+        ax.set_title(
+            f"{split.upper()} - Cluster {k} | "
+            f"μ = {mu_str} | "
+            f"Seq ID: {seq_id} | "
+            f"{start_t} → {end_t}"
+        )
+
+        fig.canvas.draw_idle()
+
+    def on_key(event):
+        if event.key == "left":
+            state["spos"] -= 1
+        elif event.key == "right":
+            state["spos"] += 1
+        elif event.key == "up":
+            state["cpos"] = (state["cpos"] - 1) % len(clusters)
+            state["spos"] = 0
+        elif event.key == "down":
+            state["cpos"] = (state["cpos"] + 1) % len(clusters)
+            state["spos"] = 0
+        elif event.key in ("q", "escape"):
+            plt.close(fig)
+            return
+
+        update_plot()
+
+    fig.canvas.mpl_connect("key_press_event", on_key)
+    update_plot()
+    plt.show()
+
+
+
 
 def main():
-    X, mem, labels = load_data(SPLIT)
-    idx = save_cluster_arrays(X, labels, CLUSTER_ID)
+    X = np.load(SPLITS / f"{SPLIT}_windows.npy")
+    memberships = np.load(SPLITS / f"{SPLIT}_memberships.npy")
+    labels = memberships.argmax(axis=1)
+    meta = pd.read_csv(SPLITS / f"{SPLIT}_metadata.csv")
 
-    if len(idx) == 0:
-        print(f"No sequences in cluster {CLUSTER_ID} for split '{SPLIT}'."); return
+    plot_cluster_sequences(X, labels, meta, SENSOR_IDX, SPLIT)
+    interactive_viewer(X, labels, meta, memberships, SENSOR_IDX, SPLIT)
 
-    tvoc_matrix = X[idx, :, SENSOR_IDX]   # (n_in_cluster, T)
 
-    # plots
-    title_band = f"{SPLIT.upper()} - Cluster {CLUSTER_ID} - Sensor {SENSOR_IDX} (mean & 10-90%)"
-    plot_band(tvoc_matrix, title_band)
-
-    title_examples = f"{SPLIT.upper()} - Cluster {CLUSTER_ID} - Example sequences"
-    plot_examples(tvoc_matrix, N_EXAMPLES, title_examples)
-
-    if SAVE_FIGS:
-        figdir = Path(f"{SPLITS}/figs"); figdir.mkdir(exist_ok=True)
-        plt.savefig(figdir / f"{SPLIT}_cluster{CLUSTER_ID}_sensor{SENSOR_IDX}.png", dpi=150)
-    plt.show()
 
 if __name__ == "__main__":
     main()

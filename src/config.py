@@ -31,8 +31,11 @@ FALSE_ALARM_THRESHOLDS = {
 #------------Change of Point Parameters------------------
 MODEL = 'l2'
 PEN = 100
-MINL = 360
+MINL = 36
 JUMP = 540
+
+MAX_FA_GAP = 60 
+LARGE_GAP = 30  # seconds allowed (≤ 3 missing points for 10-sec sampling)
 
 #------------FORMATS------------------
 FORMAT = '%Y-%m-%d %H:%M:%S'

@@ -1,50 +1,75 @@
-# fcm_and_predict.py
 import numpy as np
 from skfuzzy.cluster import cmeans, cmeans_predict
 
 SPLITS = "splits"
-m = 2.0          # fuzziness (standard)
-C = 3            # clean / medium / high
+N_CLUSTERS = 3
+M = 2.0
+ERROR = 1e-5
+MAXITER = 150
+SEED = 42
 
-# 1) load
-tr = np.load(f"{SPLITS}/train_embeddings.npy")
-va = np.load(f"{SPLITS}/val_embeddings.npy")
-te = np.load(f"{SPLITS}/test_embeddings.npy")
 
-print(f"Train shape: {tr.shape}")
-print(f"Val shape: {va.shape}")
-print(f"Test shape: {te.shape}")
+def load_embeddings(split: str) -> np.ndarray:
+    arr = np.load(f"{SPLITS}/{split}_embeddings_pca.npy")
+    if arr.ndim != 2:
+        raise ValueError(f"{split} embeddings must be 2D, got {arr.shape}")
+    return arr
 
-# 2) fit FCM on TRAIN
-# skfuzzy expects (features, samples)
-cntr, u_tr, u0, d, jm, p, fpc = cmeans(
-    data=tr.T, c=C, m=m, error=1e-5, maxiter=200, init=None
-)
 
-print(f"FCM converged. FPC: {fpc:.4f}")
+def main():
+    # load
+    tr = load_embeddings("train")
+    va = load_embeddings("val")
+    te = load_embeddings("test")
 
-# 3) predict memberships for VAL/TEST with learned centers
-u_va, u0_va, d_va, jm_va, p_va, fpc_va = cmeans_predict(
-    va.T, cntr, m, error=1e-5, maxiter=200
-)
-u_te, u0_te, d_te, jm_te, p_te, fpc_te = cmeans_predict(
-    te.T, cntr, m, error=1e-5, maxiter=200
-)
+    print("Embeddings:")
+    print("  train:", tr.shape)
+    print("  val  :", va.shape)
+    print("  test :", te.shape)
 
-# sanity: memberships sum to 1
-assert np.allclose(u_tr.sum(axis=0), 1, atol=1e-5), "Train memberships don't sum to 1"
-assert np.allclose(u_va.sum(axis=0), 1, atol=1e-5), "Val memberships don't sum to 1"
-assert np.allclose(u_te.sum(axis=0), 1, atol=1e-5), "Test memberships don't sum to 1"
+    # fit FCM on train
+    cntr, u_tr, _, _, _, _, fpc = cmeans(
+        tr.T,
+        c=N_CLUSTERS,
+        m=M,
+        error=ERROR,
+        maxiter=MAXITER,
+        init=None,
+        seed=SEED,
+    )
+    print(f"FPC: {fpc:.4f}")
 
-print("Membership assertions passed ✓")
+    # predict memberships for val/test
+    def predict(x: np.ndarray) -> np.ndarray:
+        u, _, _, _, _, _ = cmeans_predict(
+            test_data=x.T,
+            cntr_trained=cntr,
+            m=M,
+            error=ERROR,
+            maxiter=MAXITER,
+        )
+        return u.T  # (n_samples, n_clusters)
 
-# Save results
-np.save(f"{SPLITS}/fcm_centers.npy", cntr)
-np.save(f"{SPLITS}/train_memberships.npy", u_tr.T)  # (N_tr, 3)
-np.save(f"{SPLITS}/val_memberships.npy",   u_va.T)  # (N_va, 3)
-np.save(f"{SPLITS}/test_memberships.npy",  u_te.T)  # (N_te, 3)
+    u_tr = u_tr.T
+    u_va = predict(va)
+    u_te = predict(te)
 
-print(f"\nFCM complete:")
-print(f"  Train: {u_tr.T.shape}")
-print(f"  Val:   {u_va.T.shape}")
-print(f"  Test:  {u_te.T.shape}")
+    for name, u in [("train", u_tr), ("val", u_va), ("test", u_te)]:
+        sums = u.sum(axis=1)
+        if not np.allclose(sums, 1.0, atol=1e-5):
+            raise ValueError(f"{name} memberships rows do not sum to 1")
+
+    np.save(f"{SPLITS}/fcm_centers.npy", cntr)
+    np.save(f"{SPLITS}/train_memberships.npy", u_tr)
+    np.save(f"{SPLITS}/val_memberships.npy", u_va)
+    np.save(f"{SPLITS}/test_memberships.npy", u_te)
+
+    print("Saved:")
+    print("  fcm_centers.npy")
+    print("  train_memberships.npy")
+    print("  val_memberships.npy")
+    print("  test_memberships.npy")
+
+
+if __name__ == "__main__":
+    main()

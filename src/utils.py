@@ -33,38 +33,28 @@ def reindex_report(df, raw_df):
     print("-" * 40)
 
 
-def interpolate_report(original_df, filled_df, out_dir):
-    total_points = len(original_df)
-    total_missing = original_df[cf.SENSOR_COLUMNS].isna().sum().sum()
-    total_filled = filled_df[cf.SENSOR_COLUMNS].isna().sum().sum()
-    total_interpolated = total_missing - total_filled
-
-    filled_df.to_csv('csv_checklist/filled_df.csv', index=False)
-
-    print(filled_df.head(20))
-    print(f"Total data points: {total_points * len(cf.SENSOR_COLUMNS)}")
-    print(f"Total missing data points before interpolation: {total_missing}")
-    print(f"Total data points filled by interpolation: {total_interpolated}")
-    print("-" * 40)
-
 def filter_report(original_df, filtered_df, out_dir):
-    filtered_df.to_csv('csv_checklist/filtered_output.csv', index=False)
-    original_df.to_csv('csv_checklist/original_output.csv', index=False)
+    # ensures: csv_checklist/<dataset_name>/
+    os.makedirs(out_dir, exist_ok=True)
 
-    # Report
-    print(f"Total records after filtering: {len(filtered_df)}")
-    print(f"Preview of filtered data:")
-    print(filtered_df.head(20).to_string(index=False))
-    print("-" * 40)
+    filtered_df.to_csv(f"{out_dir}/filtered_output.csv", index=False)
+    original_df.to_csv(f"{out_dir}/original_output.csv", index=False)
 
-def seg_to_csv(segment, out_dir):
 
-    os.makedirs("segments", exist_ok=True)
+def interpolate_report(original_df, filled_df, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
 
-    for i, seg in enumerate(segment):
-            filename = f"segments/segment_{i}.csv"
-            seg.to_csv(filename, index=False)
-            print(f"Saved {filename}")
+    filled_df.to_csv(f"{out_dir}/filled_df.csv", index=False)
+    original_df.to_csv(f"{out_dir}/original_df.csv", index=False)
+
+
+def seg_to_csv(segments, out_dir):
+    # ensures: csv_checklist/<dataset_name>/segments/
+    seg_dir = f"{out_dir}/segments"
+    os.makedirs(seg_dir, exist_ok=True)
+
+    for i, seg in enumerate(segments):
+        seg.to_csv(f"{seg_dir}/segment_{i}.csv", index=False)
 
 
 def interactive_plots(states, sensor_cols, datetime_col):
@@ -128,23 +118,34 @@ def cop_plot(y, cps, s, false_alarm_indices=None):
 
 
 def save_processed_segments(segment_paths, segments, sensor_cols):
-    """Save each processed segment under processed/<dataset>/<name>_processed.csv."""
-    for path, df in zip(segment_paths, segments):
-        filename = os.path.basename(path)
-        name, _ = os.path.splitext(filename)
-        dataset = name.split("_")[0] if "_" in name else "default"
+    """
+    Save each processed *combined* dataset into:
+      processed/<dataset>_dataset/<dataset>_combined_dataset_processed.csv
+    """
 
-        out_dir = os.path.join("processed", dataset)
+    for path, df in zip(segment_paths, segments):
+        filename = os.path.basename(path)             # e.g. quarry_combined_dataset.csv
+        name, _ = os.path.splitext(filename)          # quarry_combined_dataset
+
+        # dataset name: "quarry", "tuba", etc.
+        dataset = name.split("_")[0]                  # quarry
+
+        # output directory: processed/quarry_dataset/
+        out_dir = os.path.join("processed", f"{dataset}_dataset")
         os.makedirs(out_dir, exist_ok=True)
 
-        fa_cols = [f"{s}_fa" for s in sensor_cols]
-        keep_cols = ["timestamp"] + list(sensor_cols) + fa_cols
+        # keep timestamp + sensors + FA flags (if any)
+        fa_cols = [f"{s}_fa" for s in sensor_cols if f"{s}_fa" in df.columns]
+        keep_cols = [cf.DATETIME_COL] + list(sensor_cols) + fa_cols
         df = df[keep_cols]
 
+        # final file path: processed/quarry_dataset/quarry_combined_dataset_processed.csv
         out_path = os.path.join(out_dir, f"{name}_processed.csv")
         df.to_csv(out_path, index=False)
 
         print(f"Saved {out_path}")
+
+
 
 
 

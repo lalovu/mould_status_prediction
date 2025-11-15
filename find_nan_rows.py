@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 from src.config import SENSOR_COLUMNS
 
-paths = sorted(Path("processed").glob("*/*_combined_dataset_processed.csv"))
+paths = sorted(Path("processed").glob("*_dataset/*_processed.csv"))
 
 for p in paths:
     df = pd.read_csv(p)
