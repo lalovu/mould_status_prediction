@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
+from src import config as cf
 
-SPLITS = "splits"
+
 
 
 def analyze_clusters(memberships: np.ndarray) -> None:
@@ -74,9 +75,9 @@ def show_top_samples(
 
 
 def visualize_default() -> None:
-    emb = np.load(f"{SPLITS}/train_embeddings_pca.npy")
-    mem = np.load(f"{SPLITS}/train_memberships.npy")
-    ctr = np.load(f"{SPLITS}/fcm_centers.npy")
+    emb = np.load(f"{cf.SPLITS_DIR}/train_embeddings_pca.npy")
+    mem = np.load(f"{cf.SPLITS_DIR}/train_memberships.npy")
+    ctr = np.load(f"{cf.SPLITS_DIR}/fcm_centers.npy")
     analyze_clusters(mem)
     plot_2d(emb, mem, ctr)
     plot_memberships(mem)
@@ -85,5 +86,5 @@ def visualize_default() -> None:
 if __name__ == "__main__":
     visualize_default()
     # Example: inspect most typical samples of cluster 0
-    mem = np.load(f"{SPLITS}/train_memberships.npy")
-    show_top_samples(mem, cluster_id=0, n=5)
+    mem = np.load(f"{cf.SPLITS_DIR}/train_memberships.npy")
+    show_top_samples(mem, cluster_id=1, n=5)

@@ -9,11 +9,7 @@ eval = cf.EVAL
 
 
 def false_alarm_event(df, segment_df, y, cps, sensor, threshold):
-    """
-    Handle false alarm detection per sensor.
-    Short blocks -> interpolate.
-    Long blocks (length > cf.MAX_FA_GAP) -> mark to drop later.
-    """
+    
     results = []
 
     # ensure cps are valid boundaries
@@ -59,9 +55,7 @@ def false_alarm_event(df, segment_df, y, cps, sensor, threshold):
 
 
 def cop_false_alarm(segments, return_segments=False, segment_names=None):
-    """
-    Perform CoP (change point) detection and false alarm removal for each segment.
-    """
+
     all_false_alarms = []
     processed_segments = []
 
@@ -87,7 +81,7 @@ def cop_false_alarm(segments, return_segments=False, segment_names=None):
                 )
                 cps = algo.fit(y_std).predict(pen=cf.PEN)
             except Exception:
-                # if segment is too short or unstable for PELT
+                
                 cps = [len(y)]
 
             # per-sensor threshold

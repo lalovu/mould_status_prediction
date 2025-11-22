@@ -43,9 +43,7 @@ def build_autoencoder(input_shape, emb_dim: int):
 
 
 def reconstruction_metrics(x_true, x_pred, name: str):
-    diff = x_true - x_pred
-    mae = np.mean(np.abs(diff))
-    rmse = np.sqrt(np.mean(diff ** 2))
+    
 
     a = x_true.reshape(-1)
     b = x_pred.reshape(-1)
@@ -54,7 +52,7 @@ def reconstruction_metrics(x_true, x_pred, name: str):
     else:
         corr = np.corrcoef(a, b)[0, 1]
 
-    print(f"{name}: MAE={mae:.4f}, RMSE={rmse:.4f}, Corr={corr:.4f}")
+    print(f"{name}: Corr={corr:.4f}")
 
 
 def get_embeddings(model, x):

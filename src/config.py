@@ -57,3 +57,25 @@ JUMP = 1200
 '''
 #------------Sequence Config------------------
 WINDOW = 360  
+
+#------------LSTM------------------
+
+
+
+
+#------------PCA------------------
+
+#------------XGBOOST and FCM------------------
+
+SPLITS_DIR = "splits"
+
+MODELS_DIR = "models"
+
+XGB_MAX_GAP_SECONDS = 90
+
+
+#------------Inference------------------
+FIREBASE_CRED_PATH = "creds/service_account.json"
+
+
+FIREBASE_DB_URL = "https://sensor-data-991ff-default-rtdb.asia-southeast1.firebasedatabase.app/"

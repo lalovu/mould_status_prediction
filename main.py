@@ -43,7 +43,7 @@ def main():
         # Interactive plots (no folder needed)
         states = {
             "raw": raw,
-            "hampel": hampel_df,
+            "smooth_df": processed_segments,
         }
         ut.interactive_plots(
             states,
