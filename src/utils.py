@@ -3,6 +3,9 @@ from . import config as cf
 import matplotlib.pyplot as plt
 import glob
 import os
+from pathlib import Path
+import numpy as np
+
 
 
 def count_issues(df):
@@ -32,38 +35,28 @@ def reindex_report(df, raw_df):
     print("-" * 40)
 
 
-def interpolate_report(original_df, filled_df):
-    total_points = len(original_df)
-    total_missing = original_df[cf.SENSOR_COLUMNS].isna().sum().sum()
-    total_filled = filled_df[cf.SENSOR_COLUMNS].isna().sum().sum()
-    total_interpolated = total_missing - total_filled
+def filter_report(original_df, filtered_df, out_dir):
+    # ensures: csv_checklist/<dataset_name>/
+    os.makedirs(out_dir, exist_ok=True)
 
-    filled_df.to_csv('csv_checklist/filled_df.csv', index=False)
+    filtered_df.to_csv(f"{out_dir}/filtered_output.csv", index=False)
+    original_df.to_csv(f"{out_dir}/original_output.csv", index=False)
 
-    print(filled_df.head(20))
-    print(f"Total data points: {total_points * len(cf.SENSOR_COLUMNS)}")
-    print(f"Total missing data points before interpolation: {total_missing}")
-    print(f"Total data points filled by interpolation: {total_interpolated}")
-    print("-" * 40)
 
-def filter_report(original_df, filtered_df):
-    filtered_df.to_csv('csv_checklist/filtered_output.csv', index=False)
-    original_df.to_csv('csv_checklist/original_output.csv', index=False)
+def interpolate_report(original_df, filled_df, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
 
-    # Report
-    print(f"Total records after filtering: {len(filtered_df)}")
-    print(f"Preview of filtered data:")
-    print(filtered_df.head(20).to_string(index=False))
-    print("-" * 40)
+    filled_df.to_csv(f"{out_dir}/filled_df.csv", index=False)
+    original_df.to_csv(f"{out_dir}/original_df.csv", index=False)
 
-def seg_to_csv(segment):
 
-    os.makedirs("segments", exist_ok=True)
+def seg_to_csv(segments, out_dir):
+    # ensures: csv_checklist/<dataset_name>/segments/
+    seg_dir = f"{out_dir}/segments"
+    os.makedirs(seg_dir, exist_ok=True)
 
-    for i, seg in enumerate(segment):
-            filename = f"segments/segment_{i}.csv"
-            seg.to_csv(filename, index=False)
-            print(f"Saved {filename}")
+    for i, seg in enumerate(segments):
+        seg.to_csv(f"{seg_dir}/segment_{i}.csv", index=False)
 
 
 def interactive_plots(states, sensor_cols, datetime_col):
@@ -124,6 +117,96 @@ def cop_plot(y, cps, s, false_alarm_indices=None):
     plt.show()
 
 
+
+
+def save_processed_segments(segment_paths, segments, sensor_cols):
+    """
+    Save each processed *combined* dataset into:
+      processed/<dataset>_dataset/<dataset>_combined_dataset_processed.csv
+    """
+
+    for path, df in zip(segment_paths, segments):
+        filename = os.path.basename(path)             # e.g. quarry_combined_dataset.csv
+        name, _ = os.path.splitext(filename)          # quarry_combined_dataset
+
+        # dataset name: "quarry", "tuba", etc.
+        dataset = name.split("_")[0]                  # quarry
+
+        # output directory: processed/quarry_dataset/
+        out_dir = os.path.join("processed", f"{dataset}_dataset")
+        os.makedirs(out_dir, exist_ok=True)
+
+        # keep timestamp + sensors + FA flags (if any)
+        fa_cols = [f"{s}_fa" for s in sensor_cols if f"{s}_fa" in df.columns]
+        keep_cols = [cf.DATETIME_COL] + list(sensor_cols) + fa_cols
+        df = df[keep_cols]
+
+        # final file path: processed/quarry_dataset/quarry_combined_dataset_processed.csv
+        out_path = os.path.join(out_dir, f"{name}_processed.csv")
+        df.to_csv(out_path, index=False)
+
+        print(f"Saved {out_path}")
+
+
+def plot_history(history, out_dir: Path):
+    """Save loss vs epoch figure."""
+    h = history.history
+    epochs = range(1, len(h["loss"]) + 1)
+
+    plt.figure()
+    plt.plot(epochs, h["loss"], label="Train loss")
+    if "val_loss" in h:
+        plt.plot(epochs, h["val_loss"], label="Val loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("LSTM Autoencoder Training")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(out_dir / "lstm_training_curve.png", dpi=150)
+    plt.close()
+
+def plot_pca_variance(pca, out_dir: Path):
+    """Save a PCA variance-explained plot."""
+    ratios = pca.explained_variance_ratio_
+    comps = range(1, len(ratios) + 1)
+
+    plt.figure()
+    plt.plot(comps, ratios, marker="o", label="Individual variance")
+    plt.plot(comps, [sum(ratios[:i]) for i in comps], marker="s", label="Cumulative variance")
+    plt.xlabel("PCA component")
+    plt.ylabel("Explained variance ratio")
+    plt.title("PCA Variance Explained")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(out_dir / "pca_variance.png", dpi=150)
+    plt.close()
+
+
+def plot_regression_scatter(y_true, y_pred, out_dir: Path, basename: str):
+    """Scatter plot: true vs predicted, with axis limits for clarity."""
+    y_true = np.asarray(y_true).ravel()
+    y_pred = np.asarray(y_pred).ravel()
+
+    # Determine sensible range based on your membership values
+    min_val = 0.1
+    max_val = 0.7
+
+    plt.figure()
+    plt.scatter(y_true, y_pred, alpha=0.6, s=20)
+
+    # perfect prediction line
+    plt.plot([min_val, max_val], [min_val, max_val], linestyle="--")
+
+    plt.xlim(min_val, max_val)
+    plt.ylim(min_val, max_val)
+
+    plt.xlabel("True")
+    plt.ylabel("Predicted")
+    plt.title(basename)
+
+    plt.tight_layout()
+    plt.savefig(out_dir / f"{basename}_scatter_experiment.png", dpi=150)
+    plt.close()
 
 
 

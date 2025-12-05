@@ -1,70 +1,125 @@
-import pandas as pd
+# sequence.py
 import numpy as np
+import pandas as pd
 from pathlib import Path
-import config as cf
-
-# 1) Lock the exact feature order ONCE and reuse everywhere
-SENSOR_COLS = cf.SENSOR_COLUMNS
-def slice_windows(df, window_size=360):
-    # 2) Use ONLY sensor columns; ensure numeric and correct order
-    arr = df[SENSOR_COLS].to_numpy(dtype=np.float32)
-    n = len(arr) // window_size * window_size
-    return arr[:n].reshape(-1, window_size, arr.shape[1])
-
-segments = Path('processed').glob('processed_segment_*.csv')
-all_windows = []
-start_times = []
-
-WINDOW = 360  # avoid hardcoding 360 elsewhere
-
-print("="*60)
-print(f"{'Segment':<30} {'Rows':<10} {'Windows':<10} {'Hours':<10}")
-print("="*60)
-
-for file in sorted(segments):
-    df = pd.read_csv(file, parse_dates=['timestamp'])
-    df = df.sort_values('timestamp')
-
-    windows = slice_windows(df, window_size=WINDOW)
-
-    n_w = len(windows)
-    if n_w > 0:
-        idx = np.arange(n_w) * WINDOW
-        start_times.extend(df['timestamp'].iloc[idx].to_list())
-
-    print(f"{file.name:<30} {len(df):<10,} {n_w:<10} {float(n_w):<10.2f}")
-    # extend with (window_size, num_features) arrays
-    all_windows.extend(windows)
-
-print("="*60)
-print(f"{'TOTAL':<30} {'':<10} {len(all_windows):<10} {float(len(all_windows)):<10.2f}")
-print("="*60)
-
-if len(all_windows) != len(start_times):
-    raise ValueError("Window count and start_times count mismatch.")
-
-# 3) Chronological sort across segments
-start_times = np.array(start_times)
-order = np.argsort(start_times)
-all_windows = [all_windows[i] for i in order]
-
-# 4) Chronological split 70/15/15
-N = len(all_windows)
-n_train = int(np.floor(0.70 * N))
-n_val   = int(np.floor(0.15 * N))
-n_test  = N - n_train - n_val
-
-train_windows = np.stack(all_windows[:n_train], axis=0)                  # (N_tr, 360, 7)
-val_windows   = np.stack(all_windows[n_train:n_train+n_val], axis=0)     # (N_va, 360, 7)
-test_windows  = np.stack(all_windows[n_train+n_val:], axis=0)            # (N_te, 360, 7)
-
-print(f"Split -> Train: {len(train_windows)}, Val: {len(val_windows)}, Test: {len(test_windows)}")
-
-Path('splits').mkdir(exist_ok=True)
-np.save('splits/train_windows.npy', train_windows)
-np.save('splits/val_windows.npy',   val_windows)
-np.save('splits/test_windows.npy',  test_windows)
+from config import WINDOW, SENSOR_COLUMNS, DATETIME_COL, LARGE_GAP
 
 
+def slice_windows(df, window_size):
+    """Return (n_windows, window_size, n_sensors) or None if too short."""
+    arr = df[SENSOR_COLUMNS].to_numpy(dtype=np.float32)
+    n_full = len(arr) // window_size
+    if n_full == 0:
+        return None
+    n = n_full * window_size
+    return arr[:n].reshape(n_full, window_size, arr.shape[1])
 
-print("Saved: splits/train_windows.npy, splits/val_windows.npy, splits/test_windows.npy")
+
+def main():
+    processed_root = Path("processed")
+    out_dir = Path("splits")
+    out_dir.mkdir(exist_ok=True)
+    OUTPUT_SUFFIX = "_test"
+
+
+    split_windows = {"train": [], "val": [], "test": []}
+    split_meta    = {"train": [], "val": [], "test": []}
+    seq_id = 0
+
+
+    # processed/<dataset>_dataset/*_processed.csv
+    files = sorted(processed_root.glob("*_dataset/tuba_combined_dataset_processed.csv"))
+    if not files:
+        raise FileNotFoundError("No *_processed.csv found under processed/*_dataset/")
+
+    for file_path in files:
+        df = pd.read_csv(file_path, parse_dates=[DATETIME_COL])
+        df = df.sort_values(DATETIME_COL).reset_index(drop=True)
+
+        windows = slice_windows(df, WINDOW)
+        if windows is None:
+            print(f"Skipping {file_path} (not enough rows)")
+            continue
+
+        n = windows.shape[0]
+        n_train = int(0.70 * n)
+        n_val   = int(0.15 * n)
+
+        idx_ranges = {
+            "train": (0, n_train),
+            "val":   (n_train, n_train + n_val),
+            "test":  (n_train + n_val, n),
+        }
+
+        location = file_path.parent.name
+        print(
+            f"{file_path} -> "
+            f"train {idx_ranges['train'][1] - idx_ranges['train'][0]}, "
+            f"val {idx_ranges['val'][1] - idx_ranges['val'][0]}, "
+            f"test {idx_ranges['test'][1] - idx_ranges['test'][0]}"
+        )
+
+        for split_name, (w0, w1) in idx_ranges.items():
+            for w_idx in range(w0, w1):
+
+                row_start = w_idx * WINDOW
+                row_end   = row_start + WINDOW - 1
+
+                start_time = df[DATETIME_COL].iloc[row_start]
+                end_time   = df[DATETIME_COL].iloc[row_end]
+
+
+                
+                    # timestamp continuity logic
+               
+                times = df[DATETIME_COL].iloc[row_start:row_end+1].to_numpy()
+                diff_sec = np.diff(times).astype("timedelta64[s]").astype(int)
+
+                if np.any(diff_sec > LARGE_GAP):
+                    continue  # large gap → drop window
+
+                if np.any(diff_sec != 10):
+                    # small gaps → interpolate window
+                    win_df = df.iloc[row_start:row_end+1].copy()
+                    for s in SENSOR_COLUMNS:
+                        win_df[s] = win_df[s].interpolate(
+                            method="linear",
+                            limit_direction="both"
+                        )
+                    window = win_df[SENSOR_COLUMNS].to_numpy(dtype=np.float32)
+                else:
+                    window = df[SENSOR_COLUMNS].iloc[row_start:row_end+1] \
+                                .to_numpy(dtype=np.float32)
+                # ---------------------------------------
+
+                split_windows[split_name].append(window)
+                split_meta[split_name].append({
+                    "sequence_id": seq_id,
+                    "location": location,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                })
+                seq_id += 1
+
+    # Save all splits
+ 
+    for split_name in ["train", "val", "test"]:
+        if not split_windows[split_name]:
+            print(f"No {split_name} windows found.")
+            continue
+
+        arr = np.stack(split_windows[split_name], axis=0)
+        meta_df = pd.DataFrame(split_meta[split_name])
+
+        print(f"\n--- Checking NaNs for {split_name} ---")
+        print("Total NaNs:", np.isnan(arr).sum())
+        print("----------------------------------\n")
+
+        np.save(out_dir / f"{split_name}_windows{OUTPUT_SUFFIX}.npy", arr)
+        meta_df.to_csv(out_dir / f"{split_name}_metadata{OUTPUT_SUFFIX}.csv", index=False)
+
+        print(f"{split_name}: {arr.shape[0]} sequences saved")
+
+
+if __name__ == "__main__":
+    main()

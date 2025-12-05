@@ -1,5 +1,5 @@
 import pandas as pd
-from . import config as cf
+from .config import DATETIME_COL, SENSOR_COLUMNS, FORMAT, FREQ, GAP_THRESHOLD, HAMPEL_N_SIGMAS, HAMPEL_WINDOW, ROLLING_WINDOW
 import numpy as np
 from hampel import hampel
 
@@ -7,19 +7,19 @@ from hampel import hampel
 def load_sensor_data(path):
     df = pd.read_csv(
         path,
-        usecols = [cf.DATETIME_COL] + cf.SENSOR_COLUMNS,
+        usecols = [DATETIME_COL] + SENSOR_COLUMNS,
         encoding = 'utf-8',
         header=0,
     )
 
-    df[cf.DATETIME_COL] = pd.to_datetime(
-        df[cf.DATETIME_COL],
-        format = cf.FORMAT,
+    df[DATETIME_COL] = pd.to_datetime(
+        df[DATETIME_COL],
+        format = FORMAT,
         errors = 'coerce'
     )
 
-    df_drop = df.drop_duplicates(subset=[cf.DATETIME_COL], keep='first')
-    df_sensors = df_drop[cf.SENSOR_COLUMNS].apply(pd.to_numeric, errors='coerce')
+    df_drop = df.drop_duplicates(subset=[DATETIME_COL], keep='first')
+    df_sensors = df_drop[SENSOR_COLUMNS].apply(pd.to_numeric, errors='coerce')
     
     return df_drop, df_sensors, df
 
@@ -27,25 +27,25 @@ def load_sensor_data(path):
 def reindex(df):
     df = df.copy()
     # Beginning and End of Data Gathered
-    start = df[cf.DATETIME_COL].min()
-    end = df[cf.DATETIME_COL].max()
+    start = df[DATETIME_COL].min()
+    end = df[DATETIME_COL].max()
 
-    full_range = pd.date_range(start=start, end=end, freq=cf.FREQ)
-    df_reindexed = df.set_index(cf.DATETIME_COL) \
+    full_range = pd.date_range(start=start, end=end, freq=FREQ)
+    df_reindexed = df.set_index(DATETIME_COL) \
                     .reindex(full_range) \
-                    .rename_axis(cf.DATETIME_COL) \
+                    .rename_axis(DATETIME_COL) \
                     .reset_index()
 
     return df_reindexed
 
 def hampel_filter(df):
     df_copy = df.copy()
-    for col in cf.SENSOR_COLUMNS:
+    for col in SENSOR_COLUMNS:
         series = df_copy[col]
         res = hampel(
             series, 
-            window_size=cf.HAMPEL_WINDOW, 
-            n_sigma=float(cf.HAMPEL_N_SIGMAS)
+            window_size=HAMPEL_WINDOW, 
+            n_sigma=float(HAMPEL_N_SIGMAS)
         )
         
         flag_col = col + "_is_outlier"
@@ -57,14 +57,14 @@ def hampel_filter(df):
 
 def interpolate(df):
     df_interp = df.copy()
-    df_interp[cf.DATETIME_COL] = pd.to_datetime(df_interp[cf.DATETIME_COL], errors='coerce')
-    df_interp = df_interp.set_index(cf.DATETIME_COL)
+    df_interp[DATETIME_COL] = pd.to_datetime(df_interp[DATETIME_COL], errors='coerce')
+    df_interp = df_interp.set_index(DATETIME_COL)
     
-    for col in cf.SENSOR_COLUMNS:
+    for col in SENSOR_COLUMNS:
         orig_nan_mask = df_interp[col].isna()
         df_interp[col] = df_interp[col].interpolate(
             method='linear',
-            limit=cf.GAP_THRESHOLD,  
+            limit=GAP_THRESHOLD,  
             limit_direction='both'
         )
         flag_col = col + "_is_interpolated"
@@ -76,10 +76,10 @@ def interpolate(df):
 
 def segment_gaps(df):
     df_copy = df.copy()
-    df_copy[cf.DATETIME_COL] = pd.to_datetime(df_copy[cf.DATETIME_COL], errors='coerce')
-    df_copy = df_copy.set_index(cf.DATETIME_COL)
+    df_copy[DATETIME_COL] = pd.to_datetime(df_copy[DATETIME_COL], errors='coerce')
+    df_copy = df_copy.set_index(DATETIME_COL)
     
-    ok = df_copy[cf.SENSOR_COLUMNS].notna().all(axis=1)
+    ok = df_copy[SENSOR_COLUMNS].notna().all(axis=1)
 
     start = df_copy.index[ok & ~ok.shift(1, fill_value=False)]
     end = df_copy.index[ok & ~ok.shift(-1, fill_value=False)]
@@ -94,12 +94,12 @@ def segment_gaps(df):
 
 def rolling(df):
     df = df.copy()
-    df[cf.DATETIME_COL] = pd.to_datetime(df[cf.DATETIME_COL], errors='coerce')
-    df = df.set_index(cf.DATETIME_COL)
+    df[DATETIME_COL] = pd.to_datetime(df[DATETIME_COL], errors='coerce')
+    df = df.set_index(DATETIME_COL)
 
-    for col in cf.SENSOR_COLUMNS:
+    for col in SENSOR_COLUMNS:
         series = df[col]
-        df[col] = series.rolling(window=30, center=True, min_periods=1).median()
+        df[col] = series.rolling(window=ROLLING_WINDOW, center=True, min_periods=1).median()
     
     df = df.reset_index()
     return df

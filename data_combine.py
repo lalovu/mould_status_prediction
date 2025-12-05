@@ -26,7 +26,7 @@ def merge_logs(input_folder, output_folder, output_name="all_logs_merged.csv"):
         "Temp(C)": "temp",
         "Humidity(%)": "humidity",
         "TVOC(ppb)": "tvoc",
-        "eCO2(ppm)": "eco2",
+        "eCO2(ppm)": "eCO2",
         "PM1": "pm1",
         "PM2.5": "pm2.5",
         "PM10": "pm10",

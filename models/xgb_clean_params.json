@@ -1,0 +1,15 @@
+{
+  "n_estimators": 761,
+  "max_depth": 9,
+  "learning_rate": 0.1714367118101895,
+  "subsample": 0.6671333513153257,
+  "colsample_bytree": 0.9012587297240626,
+  "min_child_weight": 6.031704852623079,
+  "gamma": 0.23680331021106318,
+  "reg_lambda": 0.004032136347017525,
+  "reg_alpha": 0.0014067056563858609,
+  "objective": "reg:squarederror",
+  "tree_method": "hist",
+  "n_jobs": -1,
+  "random_state": 42
+}
