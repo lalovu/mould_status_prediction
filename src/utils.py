@@ -3,6 +3,8 @@ from . import config as cf
 import matplotlib.pyplot as plt
 import glob
 import os
+from pathlib import Path
+import numpy as np
 
 
 
@@ -146,8 +148,65 @@ def save_processed_segments(segment_paths, segments, sensor_cols):
         print(f"Saved {out_path}")
 
 
+def plot_history(history, out_dir: Path):
+    """Save loss vs epoch figure."""
+    h = history.history
+    epochs = range(1, len(h["loss"]) + 1)
+
+    plt.figure()
+    plt.plot(epochs, h["loss"], label="Train loss")
+    if "val_loss" in h:
+        plt.plot(epochs, h["val_loss"], label="Val loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("LSTM Autoencoder Training")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(out_dir / "lstm_training_curve.png", dpi=150)
+    plt.close()
+
+def plot_pca_variance(pca, out_dir: Path):
+    """Save a PCA variance-explained plot."""
+    ratios = pca.explained_variance_ratio_
+    comps = range(1, len(ratios) + 1)
+
+    plt.figure()
+    plt.plot(comps, ratios, marker="o", label="Individual variance")
+    plt.plot(comps, [sum(ratios[:i]) for i in comps], marker="s", label="Cumulative variance")
+    plt.xlabel("PCA component")
+    plt.ylabel("Explained variance ratio")
+    plt.title("PCA Variance Explained")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(out_dir / "pca_variance.png", dpi=150)
+    plt.close()
 
 
+def plot_regression_scatter(y_true, y_pred, out_dir: Path, basename: str):
+    """Scatter plot: true vs predicted, with axis limits for clarity."""
+    y_true = np.asarray(y_true).ravel()
+    y_pred = np.asarray(y_pred).ravel()
+
+    # Determine sensible range based on your membership values
+    min_val = 0.1
+    max_val = 0.7
+
+    plt.figure()
+    plt.scatter(y_true, y_pred, alpha=0.6, s=20)
+
+    # perfect prediction line
+    plt.plot([min_val, max_val], [min_val, max_val], linestyle="--")
+
+    plt.xlim(min_val, max_val)
+    plt.ylim(min_val, max_val)
+
+    plt.xlabel("True")
+    plt.ylabel("Predicted")
+    plt.title(basename)
+
+    plt.tight_layout()
+    plt.savefig(out_dir / f"{basename}_scatter_experiment.png", dpi=150)
+    plt.close()
 
 
 

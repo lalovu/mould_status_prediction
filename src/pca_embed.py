@@ -4,13 +4,15 @@ from pathlib import Path
 from sklearn.decomposition import PCA
 from scipy.stats import chi2
 from joblib import dump
+from src.utils import plot_pca_variance
+
 
 
 def load_embeddings(splits_path: Path):
     """Load LSTM embeddings for train/val/test."""
-    train = np.load(splits_path / "train_embeddings.npy")
-    val   = np.load(splits_path / "val_embeddings.npy")
-    test  = np.load(splits_path / "test_embeddings.npy")
+    train = np.load(splits_path / "train_embeddings_test.npy")
+    val   = np.load(splits_path / "val_embeddings_test.npy")
+    test  = np.load(splits_path / "test_embeddings_test.npy")
     return train, val, test
 
 
@@ -84,11 +86,13 @@ def run_pca(
         train, val, test, n_components=pca_dim
     )
 
+    plot_pca_variance(pca, splits_path)
+
     # save PCA model + embeddings
-    dump(pca, splits_path / "pca.joblib")
-    np.save(splits_path / "train_embeddings_pca.npy", train_p)
-    np.save(splits_path / "val_embeddings_pca.npy",   val_p)
-    np.save(splits_path / "test_embeddings_pca.npy",  test_p)
+    dump(pca, splits_path / "pca_test.joblib")
+    np.save(splits_path / "train_embeddings_pca_test.npy", train_p)
+    np.save(splits_path / "val_embeddings_pca_test.npy",   val_p)
+    np.save(splits_path / "test_embeddings_pca_test.npy",  test_p)
 
     print("Saved:")
     print(" - pca.joblib")
@@ -97,3 +101,4 @@ def run_pca(
 
 if __name__ == "__main__":
     run_pca()
+    

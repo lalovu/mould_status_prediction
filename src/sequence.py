@@ -19,6 +19,8 @@ def main():
     processed_root = Path("processed")
     out_dir = Path("splits")
     out_dir.mkdir(exist_ok=True)
+    OUTPUT_SUFFIX = "_test"
+
 
     split_windows = {"train": [], "val": [], "test": []}
     split_meta    = {"train": [], "val": [], "test": []}
@@ -26,7 +28,7 @@ def main():
 
 
     # processed/<dataset>_dataset/*_processed.csv
-    files = sorted(processed_root.glob("*_dataset/*_processed.csv"))
+    files = sorted(processed_root.glob("*_dataset/tuba_combined_dataset_processed.csv"))
     if not files:
         raise FileNotFoundError("No *_processed.csv found under processed/*_dataset/")
 
@@ -113,8 +115,8 @@ def main():
         print("Total NaNs:", np.isnan(arr).sum())
         print("----------------------------------\n")
 
-        np.save(out_dir / f"{split_name}_windows.npy", arr)
-        meta_df.to_csv(out_dir / f"{split_name}_metadata.csv", index=False)
+        np.save(out_dir / f"{split_name}_windows{OUTPUT_SUFFIX}.npy", arr)
+        meta_df.to_csv(out_dir / f"{split_name}_metadata{OUTPUT_SUFFIX}.csv", index=False)
 
         print(f"{split_name}: {arr.shape[0]} sequences saved")
 

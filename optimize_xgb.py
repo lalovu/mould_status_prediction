@@ -111,7 +111,7 @@ def tune_one(name: str, col_idx: int, n_trials: int = 50):
     )
 
     MODELS.mkdir(exist_ok=True)
-    out_path = MODELS / f"xgb_{name}_params.json"
+    out_path = MODELS / f"xgb_{name}_params_v2.json"
     out_path.write_text(json.dumps(best_params, indent=2))
     print(f"Saved best params to {out_path}")
 

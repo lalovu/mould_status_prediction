@@ -75,9 +75,9 @@ def show_top_samples(
 
 
 def visualize_default() -> None:
-    emb = np.load(f"{cf.SPLITS_DIR}/train_embeddings_pca.npy")
-    mem = np.load(f"{cf.SPLITS_DIR}/train_memberships.npy")
-    ctr = np.load(f"{cf.SPLITS_DIR}/fcm_centers.npy")
+    emb = np.load(f"{cf.SPLITS_DIR}/train_embeddings_pca_test.npy")
+    mem = np.load(f"{cf.SPLITS_DIR}/train_memberships_test.npy")
+    ctr = np.load(f"{cf.SPLITS_DIR}/fcm_centers_test.npy")
     analyze_clusters(mem)
     plot_2d(emb, mem, ctr)
     plot_memberships(mem)
@@ -86,5 +86,5 @@ def visualize_default() -> None:
 if __name__ == "__main__":
     visualize_default()
     # Example: inspect most typical samples of cluster 0
-    mem = np.load(f"{cf.SPLITS_DIR}/train_memberships.npy")
+    mem = np.load(f"{cf.SPLITS_DIR}/train_memberships_test.npy")
     show_top_samples(mem, cluster_id=1, n=5)

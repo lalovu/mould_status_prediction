@@ -6,6 +6,8 @@ from pathlib import Path
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
 from scipy.stats import spearmanr
+from src.utils import plot_regression_scatter
+
 
 from src import config as cf
 
@@ -117,11 +119,20 @@ def main():
     evaluate("MEDIUM",  m_medium, X_te, ym_te)
     evaluate("HIGH  ",  m_high,   X_te, yh_te)
 
+    # plots (test set)
+    y_pred_clean  = m_clean.predict(X_te)
+    y_pred_medium = m_medium.predict(X_te)
+    y_pred_high   = m_high.predict(X_te)
+
+    plot_regression_scatter(yc_te, y_pred_clean,  MODELS, "xgb_clean_experiment")
+    plot_regression_scatter(ym_te, y_pred_medium, MODELS, "xgb_medium_experiment")
+    plot_regression_scatter(yh_te, y_pred_high,   MODELS, "xgb_high_experiment")
+
     # save
     MODELS.mkdir(exist_ok=True)
-    m_clean.save_model(MODELS / "xgb_clean.json")
-    m_medium.save_model(MODELS / "xgb_medium.json")
-    m_high.save_model(MODELS / "xgb_high.json")
+    m_clean.save_model(MODELS / "xgb_clean_experiment.json")
+    m_medium.save_model(MODELS / "xgb_medium_experiment.json")
+    m_high.save_model(MODELS / "xgb_high_experiment.json")
 
 
 if __name__ == "__main__":

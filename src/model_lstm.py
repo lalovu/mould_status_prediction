@@ -1,7 +1,7 @@
 # model_lstm.py
 import numpy as np
 from pathlib import Path
-
+from src.utils import plot_history
 from keras import layers, models
 from keras.callbacks import EarlyStopping
 from sklearn.preprocessing import StandardScaler
@@ -9,15 +9,15 @@ from joblib import dump
 
 
 def load_data(splits_path: Path):
-    """Load train/val/test window arrays from disk."""
-    x_tr = np.load(splits_path / "train_windows.npy")
-    x_va = np.load(splits_path / "val_windows.npy")
-    x_te = np.load(splits_path / "test_windows.npy")
+    """Load train/val/test window """
+    x_tr = np.load(splits_path / "train_windows_test.npy")
+    x_va = np.load(splits_path / "val_windows_test.npy")
+    x_te = np.load(splits_path / "test_windows_test.npy")
     return x_tr, x_va, x_te
 
 
 def scale_data(x_tr, x_va, x_te):
-    """Standardize features using train statistics."""
+    """Standardize features using train statistics"""
     n_tr, t, f = x_tr.shape
     scaler = StandardScaler()
 
@@ -56,7 +56,7 @@ def reconstruction_metrics(x_true, x_pred, name: str):
 
 
 def get_embeddings(model, x):
-    """Return encoder output for each sequence."""
+    """Return encoder output for each sequence"""
     encoder = models.Model(model.input, model.get_layer("encoder").output)
     return encoder.predict(x, verbose='0')
 
@@ -68,13 +68,13 @@ def run_lstm(
     batch_size: int = 32,
     patience: int = 8,
 ):
-    """Train LSTM autoencoder and save scaler, model, and embeddings."""
+    """Train LSTM autoencoder and save scaler, model, and embeddings"""
     path = Path(splits_dir)
     path.mkdir(exist_ok=True)
 
     x_tr, x_va, x_te = load_data(path)
     x_tr, x_va, x_te, scaler = scale_data(x_tr, x_va, x_te)
-    dump(scaler, path / "scaler.joblib")
+    dump(scaler, path / "scaler_test.joblib")
 
     model = build_autoencoder(x_tr.shape[1:], emb_dim)
 
@@ -86,7 +86,7 @@ def run_lstm(
         verbose= 1,
     )
 
-    model.fit(
+    history = model.fit(
         x_tr,
         x_tr,
         validation_data=(x_va, x_va),
@@ -95,6 +95,8 @@ def run_lstm(
         callbacks=[es],
         verbose= '1',
     )
+
+    plot_history(history, path)
 
     tr_rec = model.predict(x_tr, verbose='0')
     va_rec = model.predict(x_va, verbose='0')
@@ -108,10 +110,10 @@ def run_lstm(
     va_emb = get_embeddings(model, x_va)
     te_emb = get_embeddings(model, x_te)
 
-    model.save(path / "lstm_autoencoder.keras")
-    np.save(path / "train_embeddings.npy", tr_emb)
-    np.save(path / "val_embeddings.npy", va_emb)
-    np.save(path / "test_embeddings.npy", te_emb)
+    model.save(path / "lstm_autoencoder_test.keras")
+    np.save(path / "train_embeddings_test.npy", tr_emb)
+    np.save(path / "val_embeddings_test.npy", va_emb)
+    np.save(path / "test_embeddings_test.npy", te_emb)
 
     print("Saved to", path)
     print("  scaler.joblib")

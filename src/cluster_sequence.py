@@ -5,15 +5,15 @@ from pathlib import Path
 
 SPLITS = Path("splits")
 SPLIT = "train"
-SENSOR_IDX = 2  # example: Sensor 2 (TVOC, etc.)
+SENSOR_IDX = 2 # example: Sensor 2 (TVOC, etc.)
 
 def load_data(split):
-    X = np.load(SPLITS / f"{split}_windows.npy")
-    mem = np.load(SPLITS / f"{split}_memberships.npy")
+    X = np.load(SPLITS / f"{split}_windows_test.npy")
+    mem = np.load(SPLITS / f"{split}_memberships_test.npy")
     labels = mem.argmax(axis=1)
 
     # load metadata
-    meta = pd.read_csv(SPLITS / f"{split}_metadata.csv")
+    meta = pd.read_csv(SPLITS / f"{split}_metadata_test.csv")
 
     return X, labels, meta
 
@@ -141,9 +141,9 @@ def interactive_viewer(X, labels, meta, memberships, sensor_idx, split):
 
 def main():
     X = np.load(SPLITS / f"{SPLIT}_windows.npy")
-    memberships = np.load(SPLITS / f"{SPLIT}_memberships.npy")
+    memberships = np.load(SPLITS / f"{SPLIT}_memberships_test.npy")
     labels = memberships.argmax(axis=1)
-    meta = pd.read_csv(SPLITS / f"{SPLIT}_metadata.csv")
+    meta = pd.read_csv(SPLITS / f"{SPLIT}_metadata_test.csv")
 
     plot_cluster_sequences(X, labels, meta, SENSOR_IDX, SPLIT)
     interactive_viewer(X, labels, meta, memberships, SENSOR_IDX, SPLIT)

@@ -10,7 +10,7 @@ SEED = 42
 
 
 def load_embeddings(split: str) -> np.ndarray:
-    arr = np.load(f"{SPLITS}/{split}_embeddings_pca.npy")
+    arr = np.load(f"{SPLITS}/{split}_embeddings_pca_test.npy")
     if arr.ndim != 2:
         raise ValueError(f"{split} embeddings must be 2D, got {arr.shape}")
     return arr
@@ -59,10 +59,10 @@ def main():
         if not np.allclose(sums, 1.0, atol=1e-5):
             raise ValueError(f"{name} memberships rows do not sum to 1")
 
-    np.save(f"{SPLITS}/fcm_centers.npy", cntr)
-    np.save(f"{SPLITS}/train_memberships.npy", u_tr)
-    np.save(f"{SPLITS}/val_memberships.npy", u_va)
-    np.save(f"{SPLITS}/test_memberships.npy", u_te)
+    np.save(f"{SPLITS}/fcm_centers_test.npy", cntr)
+    np.save(f"{SPLITS}/train_memberships_test.npy", u_tr)
+    np.save(f"{SPLITS}/val_memberships_test.npy", u_va)
+    np.save(f"{SPLITS}/test_memberships_test.npy", u_te)
 
     print("Saved:")
     print("  fcm_centers.npy")
